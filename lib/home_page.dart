@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'task_page.dart';
+import 'database_helper.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,6 +12,19 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> tasks = [];
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTasks();
+  }
+
+  Future<void> _refreshTasks() async {
+    final data = await DatabaseHelper.instance.getTasks();
+    setState(() {
+      tasks = data;
+    });
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -75,13 +89,12 @@ class _HomePageState extends State<HomePage> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => TaskPage(
-                    onSave: (task, dueDate) {
-                      setState(() {
-                        tasks.add({
-                          'task': task,
-                          'dueDate': dueDate.toString().split(' ')[0],
-                        });
+                    onSave: (task, dueDate) async {
+                      await DatabaseHelper.instance.insertTask({
+                        'task': task,
+                        'dueDate': dueDate.toString().split(' ')[0],
                       });
+                      _refreshTasks();
                     },
                   ),
                 ),
@@ -169,13 +182,16 @@ class _HomePageState extends State<HomePage> {
                                         initialTask: tasks[index]['task'],
                                         initialDate: DateTime.parse(
                                             tasks[index]['dueDate']),
-                                        onSave: (editedTask, editedDate) {
-                                          setState(() {
-                                            tasks[index]['task'] = editedTask;
-                                            tasks[index]['dueDate'] = editedDate
+                                        onSave: (editedTask, editedDate) async {
+                                          await DatabaseHelper.instance
+                                              .updateTask({
+                                            'id': tasks[index]['id'],
+                                            'task': editedTask,
+                                            'dueDate': editedDate
                                                 .toString()
-                                                .split(' ')[0];
+                                                .split(' ')[0],
                                           });
+                                          _refreshTasks();
                                         },
                                       ),
                                     ),
@@ -185,10 +201,10 @@ class _HomePageState extends State<HomePage> {
                               IconButton(
                                 icon:
                                     const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () {
-                                  setState(() {
-                                    tasks.removeAt(index);
-                                  });
+                                onPressed: () async {
+                                  await DatabaseHelper.instance
+                                      .deleteTask(tasks[index]['id']);
+                                  _refreshTasks();
                                 },
                               ),
                             ],
